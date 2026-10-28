@@ -1,0 +1,36 @@
+services:
+  dsh:
+    build: .
+    image: docker-deepseek-harness:local
+    restart: unless-stopped
+    # Host loopback only. Reach it with an SSH tunnel, never a public port.
+    ports:
+      - "127.0.0.1:3080:3080"
+    volumes:
+      - dsh-home:/home/dsh/.dsh
+      - ./workspace:/workspace
+    environment:
+      DSH_TELEMETRY_MODE: DISABLED
+      # Native addons are copied here before loading, so it needs exec. /tmp stays noexec.
+      NARB_NATIVE_CACHE_DIR: /home/dsh/.native-cache
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/dsh/.native-cache:exec,uid=10001,gid=10001,mode=0700,size=64m
+      - /home/dsh/.npm:uid=10001,gid=10001,mode=0700
+      - /home/dsh/.cache:uid=10001,gid=10001,mode=0700
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    mem_limit: 4g
+    networks: [dsh-net]
+
+networks:
+  dsh-net:
+    driver_opts:
+      # Fixed bridge name so scripts/block-lan.sh can target it.
+      com.docker.network.bridge.name: br-dsh
+
+volumes:
+  dsh-home:
